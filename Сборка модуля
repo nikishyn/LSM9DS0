@@ -1,0 +1,25 @@
+export ARCH=arm
+export CROSS_COMPILE=/usr/local/arm/4.3.2/bin/arm-none-linux-gnueabi- make
+
+заходим в папку с исходниками
+
+используем команду make
+
+
+Далее копируем собранный модуль ядра на плату
+scp lsm9ds0_gyr_spi.ko root@192.168.109.238:/media/
+
+Заходим на плату в папку медиа
+Загружаем модуль		
+insmod ./lsm9ds0_gyr_spi.ko
+lsmod | head -n2			- смотрим что загрузился
+dmesg | tail -n2
+rmmod lsm9ds0_gyr_spi		- выгрузить модуль 
+
+
+
+http://blablacode.ru/yadro-linux/548
+
+
+
+

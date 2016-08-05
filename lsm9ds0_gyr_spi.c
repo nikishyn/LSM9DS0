@@ -45,8 +45,8 @@ static int data = 0x55;
 static struct spi_device *spi_dev;
 
 
-unsigned char mtx[2];
-unsigned char mrx[2];
+unsigned char mtx[3];
+unsigned char mrx[3];
 
 
 
@@ -85,13 +85,7 @@ static int WriteRegister_G(struct spi_device *spi,unsigned char Adr, unsigned ch
 	spi_message_add_tail(&t, &m);
 	if((ret=spi_sync(spi, &m))<0)
 		return ret;
-/*
-	printk(KERN_ALERT "Отправил1#%d.\n", mtx[0]);
-	printk(KERN_ALERT "Отправил2#%d.\n", mtx[1]);
 	
-	printk(KERN_ALERT "Прочитал1#%d.\n", mrx[0]);
-	printk(KERN_ALERT "Прочитал2#%d.\n", mrx[1]);
-*/	
 	return ret;
 }
 
@@ -99,31 +93,34 @@ static int WriteRegister_G(struct spi_device *spi,unsigned char Adr, unsigned ch
 static int ReadRegister_G(struct spi_device *spi,unsigned char Adr)
 {
 	int ret;
-	struct spi_transfer t = {
-		.tx_buf		= mtx,
-		.rx_buf 	= mrx,
+	unsigned char TxBuf[2] = {0};
+	unsigned char RxBuf[2] = {0};
+	
+	struct spi_transfer Transmit = {
+		.tx_buf		= TxBuf,
+		.rx_buf 	= RxBuf,
 		.len		= 2,
 	};	
 	
-	struct spi_message	m;
+	struct spi_message	messege;
 	
-	mtx[0] = Adr | READREG ;
-	mtx[1] = 0xAA;
+	TxBuf[0] = Adr | READREG ;
+	TxBuf[1] = 0;
 	
-	mrx[0]=0;
-    mrx[1]=0;
+
 	
-	spi_message_init(&m);
-	spi_message_add_tail(&t, &m);
-	if((ret=spi_sync(spi, &m))<0)
+	
+	spi_message_init(&messege);
+	spi_message_add_tail(&Transmit, &messege);
+	if((ret=spi_sync(spi, &messege))<0)
 		return ret;
-/*
-	printk(KERN_ALERT "Отправил1#%d.\n", mtx[0]);
-	printk(KERN_ALERT "Отправил2#%d.\n", mtx[1]);
+
+	//printk(KERN_ALERT "Отправил1#%d.\n", mtx[0]);
+	//printk(KERN_ALERT "Отправил2#%d.\n", mtx[1]);
 	
-	printk(KERN_ALERT "Прочитал1#%d.\n", mrx[0]);
-	printk(KERN_ALERT "Прочитал2#%d.\n", mrx[1]);
-*/
+	printk(KERN_ALERT "Прочитал1#%d.\n", RxBuf[0]);
+	printk(KERN_ALERT "Прочитал2#%d.\n", RxBuf[1]);
+	
 	return ret;
 }
 
@@ -146,7 +143,7 @@ int ToggleGPIO_Thread(void *data)
 		ReadRegister_G(spi_dev,WHO_AM_I);
 		//gpio_set_value(Gyroscope.DataGyrEnableGPIO.gpio,GpioValue);
 		//gpio_set_value(Gyroscope.Spi4clk.gpio,GpioValue);
-		msleep(20);	
+		msleep(2000);	
     }
  
     return 0;
@@ -241,10 +238,10 @@ int spi_drv_probe(struct spi_device *spi)
         return ret;
 	}
     spi_dev = spi;
- 
-	
-	WriteRegister_G(spi_dev,CTRL_REG1, 0x0F);	
-    return 0;
+
+	ReadRegister_G(spi_dev,WHO_AM_I);
+    
+	return 0;
 }
  
  

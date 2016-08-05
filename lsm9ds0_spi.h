@@ -23,6 +23,19 @@
 #define LSM9DS0_GYR_DEFAULT_DATA_GYR_ENABLE				(IMX_GPIO_NR(3,31))		
 
 
+
+/**
+ * CTRL_REG1_G bit definition
+ */
+#define LSM9DS0_CTRL_REG1_G_Yen						1
+#define LSM9DS0_CTRL_REG1_G_Xen						2
+#define LSM9DS0_CTRL_REG1_G_Zen						4
+#define LSM9DS0_CTRL_REG1_G_PD						8
+#define LSM9DS0_CTRL_REG1_G_BW0						16
+#define LSM9DS0_CTRL_REG1_G_BW1						32
+#define LSM9DS0_CTRL_REG1_G_DR0						64
+#define LSM9DS0_CTRL_REG1_G_DR1						128
+
 /* typedef -------------------------------------------------------------------*/
 
 typedef struct{

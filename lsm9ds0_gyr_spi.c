@@ -16,21 +16,31 @@
 
 /* Private define ------------------------------------------------------------*/
 
-#define READREG		(0x80)
+#define READREG										(0x80)
+#define LSM9DS0_MULTIPLE_BYTE						(1 << 6)
 
 /* lsm9ds0 gyroscope registers */
 #define WHO_AM_I	(0x0F)
 
 
-#define CTRL_REG1	(0x20)    			/* CTRL REG1 */
-#define CTRL_REG2	(0x21)    			/* CTRL REG2 */
-#define CTRL_REG3	(0x22)    			/* CTRL_REG3 */
-#define CTRL_REG4	(0x23)    			/* CTRL_REG4 */
-#define CTRL_REG5	(0x24)    			/* CTRL_REG5 */
-#define	REFERENCE	(0x25)    			/* REFERENCE REG */
-#define	FIFO_CTRL_REG	(0x2E)    		/* FIFO CONTROL REGISTER */
-#define FIFO_SRC_REG	(0x2F)    		/* FIFO SOURCE REGISTER */
-#define	OUT_X_L		(0x28)    			/* 1st AXIS OUT REG of 6 */
+#define CTRL_REG1_G			(0x20)    			/* CTRL REG1 */
+#define CTRL_REG2_G			(0x21)    			/* CTRL REG2 */
+#define CTRL_REG3_G			(0x22)    			/* CTRL_REG3 */
+#define CTRL_REG4_G			(0x23)    			/* CTRL_REG4 */
+#define CTRL_REG5_G			(0x24)    			/* CTRL_REG5 */
+#define	REFERENCE_G			(0x25)    			/* REFERENCE REG */
+#define	FIFO_CTRL_REG_G		(0x2E)    			/* FIFO CONTROL REGISTER */
+#define FIFO_SRC_REG_G		(0x2F)    			/* FIFO SOURCE REGISTER */
+
+
+#define LSM9DS0_OUT_X_L_G  							(0x28)
+#define LSM9DS0_OUT_X_H_G  							(0x29)
+#define LSM9DS0_OUT_Y_L_G 							(0x2A)
+#define LSM9DS0_OUT_Y_H_G 							(0x2B)
+#define LSM9DS0_OUT_Z_L_G    						(0x2C)
+#define LSM9DS0_OUT_Z_H_G 							(0x2D)
+
+
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
 
@@ -63,11 +73,40 @@ struct spi_driver spi_drv = {
     .remove = spi_drv_remove,
 };
 
-
-
-static int WriteRegister_G(struct spi_device *spi,unsigned char Adr, unsigned char data)
+static int16_t LSM9DS0_Gyro_Read(struct spi_device *spi,int16_t *x, int16_t *y, int16_t *z)
 {
-	int ret;
+	int16_t ret = 				0;
+	uint8_t TxBuf[7] = {0};
+	uint8_t RxBuf[7] = {0};
+	
+	
+	
+	struct spi_transfer Transmit = {
+		.tx_buf		= TxBuf,
+		.rx_buf 	= RxBuf,
+		.len		= sizeof(TxBuf),
+	};	
+	
+	struct spi_message	messege;
+	TxBuf[0] = READREG | LSM9DS0_MULTIPLE_BYTE | LSM9DS0_OUT_X_L_G;
+	
+	spi_message_init(&messege);
+	spi_message_add_tail(&Transmit, &messege);
+	if((ret=spi_sync(spi, &messege))<0)
+		return ret;
+
+	*x = ((int16_t) ((RxBuf[2]) << 8) | RxBuf[1]);
+	*y = ((int16_t) ((RxBuf[4]) << 8) | RxBuf[3]);
+	*z = ((int16_t) ((RxBuf[6]) << 8) | RxBuf[5]);
+	
+	return ret;
+
+}
+
+
+static int16_t WriteRegister_G(struct spi_device *spi,unsigned char Adr, unsigned char data)
+{
+	int16_t ret;
 	struct spi_transfer t = {
 		.tx_buf		= mtx,
 		.rx_buf 	= mrx,
@@ -90,9 +129,9 @@ static int WriteRegister_G(struct spi_device *spi,unsigned char Adr, unsigned ch
 }
 
 
-static int ReadRegister_G(struct spi_device *spi,unsigned char Adr)
+static int16_t ReadRegister_G(struct spi_device *spi,unsigned char Adr/*, int16_t *ReturnData*/)
 {
-	int ret;
+	int16_t ret;
 	unsigned char TxBuf[2] = {0};
 	unsigned char RxBuf[2] = {0};
 	
@@ -118,6 +157,7 @@ static int ReadRegister_G(struct spi_device *spi,unsigned char Adr)
 	//printk(KERN_ALERT "Отправил1#%d.\n", mtx[0]);
 	//printk(KERN_ALERT "Отправил2#%d.\n", mtx[1]);
 	
+	//*ReturnData =
 	printk(KERN_ALERT "Прочитал1#%d.\n", RxBuf[0]);
 	printk(KERN_ALERT "Прочитал2#%d.\n", RxBuf[1]);
 	
@@ -127,10 +167,10 @@ static int ReadRegister_G(struct spi_device *spi,unsigned char Adr)
 
 
 
-int ToggleGPIO_Thread(void *data)
+int16_t ToggleGPIO_Thread(void *data)
 {
-	static int GpioValue  = 1;
-
+	static int16_t GpioValue  = 1;
+	int16_t	Xaxis = 0, Yaxis = 0,Zaxis = 0;
 
 	while(!kthread_should_stop()){          
 		if(GpioValue){
@@ -140,7 +180,13 @@ int ToggleGPIO_Thread(void *data)
 			GpioValue = 1;
 		}
 		
-		ReadRegister_G(spi_dev,WHO_AM_I);
+		
+		LSM9DS0_Gyro_Read(spi_dev, &Xaxis,&Yaxis,&Zaxis);
+		printk(KERN_ALERT "--------------------------------------------------- \n");
+		printk(KERN_ALERT "X =#%d.\n", Xaxis);
+		printk(KERN_ALERT "Y =#%d.\n", Yaxis);
+		printk(KERN_ALERT "Z =#%d.\n", Zaxis);
+		//ReadRegister_G(spi_dev,)
 		//gpio_set_value(Gyroscope.DataGyrEnableGPIO.gpio,GpioValue);
 		//gpio_set_value(Gyroscope.Spi4clk.gpio,GpioValue);
 		msleep(2000);	
@@ -149,7 +195,7 @@ int ToggleGPIO_Thread(void *data)
     return 0;
 }
 
-static irqreturn_t FifoReady_isr(int irq, void *data)
+static irqreturn_t FifoReady_isr(int16_t irq, void *data)
 {
 	printk("Semph");
     return IRQ_HANDLED;
@@ -157,10 +203,10 @@ static irqreturn_t FifoReady_isr(int irq, void *data)
 
 
 
-static int initFifoReadyGPIO(Gyroscope_type *pntGyro)
+static int16_t initFifoReadyGPIO(Gyroscope_type *pntGyro)
 {
 
-	int ret;
+	int16_t ret;
 	
 	
 	pntGyro->DataGyrEnableGPIO.gpio 	= LSM9DS0_GYR_DEFAULT_DATA_GYR_ENABLE;
@@ -240,6 +286,9 @@ int spi_drv_probe(struct spi_device *spi)
     spi_dev = spi;
 
 	ReadRegister_G(spi_dev,WHO_AM_I);
+	WriteRegister_G(spi_dev,
+					CTRL_REG1_G,
+					(LSM9DS0_CTRL_REG1_G_Yen | LSM9DS0_CTRL_REG1_G_Xen | LSM9DS0_CTRL_REG1_G_Zen | LSM9DS0_CTRL_REG1_G_PD));
     
 	return 0;
 }
